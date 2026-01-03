@@ -4,13 +4,27 @@ use crate::types::AllUsageData;
 use tauri::{
     menu::{Menu, MenuItem, PredefinedMenuItem},
     tray::{TrayIconBuilder, TrayIconEvent},
-    Manager, Emitter, AppHandle, Runtime,
+    Manager, Emitter, AppHandle, Runtime, Listener,
 };
 
 mod api;
 mod commands;
 mod config;
 mod types;
+
+/// Generate tray title with current usage statistics
+fn generate_tray_title(usage_data: &AllUsageData) -> String {
+    let token_limit = usage_data.quota_limits.iter()
+        .find(|l| l.type_field.contains("Token"));
+
+    let mcp_limit = usage_data.quota_limits.iter()
+        .find(|l| l.type_field.contains("MCP"));
+
+    let token_pct = token_limit.map(|l| l.percentage).unwrap_or(0.0);
+    let mcp_pct = mcp_limit.map(|l| l.percentage).unwrap_or(0.0);
+
+    format!("🆉 T:{:.0}% M:{:.0}%", token_pct, mcp_pct)
+}
 
 /// Generate tooltip text with current usage statistics
 fn generate_tray_tooltip(usage_data: &AllUsageData) -> String {
@@ -61,21 +75,35 @@ fn create_tray_menu_with_stats<R: Runtime>(app: &AppHandle<R>, usage_data: &AllU
     ])
 }
 
-/// Update tray icon tooltip and menu with latest usage data
-fn update_tray<R: Runtime>(app: &AppHandle<R>) -> Result<(), Box<dyn std::error::Error>> {
-    let state = app.state::<AppState>();
+/// Update tray icon tooltip, title, and menu with latest usage data
+pub fn update_tray<R: Runtime>(app: &AppHandle<R>) -> Result<(), Box<dyn std::error::Error>> {
+    let state = app.state::<crate::commands::AppState>();
     let usage_data = state.last_usage_data.lock().unwrap();
+    let tray_id_opt = state.tray_id.lock().unwrap();
 
     if let Some(data) = &*usage_data {
-        if let Some(tray) = app.tray_by_id("main") {
-            // Update tooltip
-            let tooltip = generate_tray_tooltip(data);
-            tray.set_tooltip(Some(tooltip.as_str()))?;
+        if let Some(tray_id) = &*tray_id_opt {
+            if let Some(tray) = app.tray_by_id(tray_id) {
+                // Update title
+                let title = generate_tray_title(data);
+                println!("DEBUG: Updating tray title to: {}", title);
+                tray.set_title(Some(title.as_str()))?;
 
-            // Update menu with stats
-            let new_menu = create_tray_menu_with_stats(app, data)?;
-            tray.set_menu(Some(new_menu))?;
+                // Update tooltip
+                let tooltip = generate_tray_tooltip(data);
+                tray.set_tooltip(Some(tooltip.as_str()))?;
+
+                // Update menu with stats
+                let new_menu = create_tray_menu_with_stats(app, data)?;
+                tray.set_menu(Some(new_menu))?;
+            } else {
+                println!("DEBUG: No tray found with ID: {:?}", tray_id);
+            }
+        } else {
+            println!("DEBUG: No tray ID stored");
         }
+    } else {
+        println!("DEBUG: No usage data available");
     }
     Ok(())
 }
@@ -92,6 +120,7 @@ pub fn run() {
             app.manage(AppState {
                 config: std::sync::Mutex::new(config),
                 last_usage_data: std::sync::Mutex::new(None),
+                tray_id: std::sync::Mutex::new(None),
             });
 
             // Create initial menu (will be updated when data arrives)
@@ -115,12 +144,20 @@ pub fn run() {
             .unwrap();
 
             // Build the tray icon
-            let _tray = TrayIconBuilder::new()
+            let tray = TrayIconBuilder::new()
                 .menu(&menu)
                 .show_menu_on_left_click(true)
-                .title("📊")
+                .title("🆉 Loading...")
                 .build(app)
                 .unwrap();
+
+            // Get the tray's ID and store it for later access
+            let tray_id = tray.id().clone();
+            println!("DEBUG: Tray created with ID: {:?}", tray_id);
+
+            // Store the tray ID in app state
+            let state = app.state::<crate::commands::AppState>();
+            *state.tray_id.lock().unwrap() = Some(tray_id.clone());
 
             // Hide window on startup (menubar app behavior)
             if let Some(window) = app.get_webview_window("main") {
@@ -132,6 +169,17 @@ pub fn run() {
             tauri::async_runtime::spawn(async move {
                 tokio::time::sleep(tokio::time::Duration::from_secs(3)).await;
                 let _ = update_tray(&app_handle);
+            });
+
+            // Listen for usage data updates and update the tray
+            let app_handle_for_listener = app.handle().clone();
+            let _ = app.listen("usage-data-updated", move |_event| {
+                let app_handle = app_handle_for_listener.clone();
+                tauri::async_runtime::spawn(async move {
+                    // Small delay to ensure data is stored
+                    tokio::time::sleep(tokio::time::Duration::from_millis(100)).await;
+                    let _ = update_tray(&app_handle);
+                });
             });
 
             Ok(())

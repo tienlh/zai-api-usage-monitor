@@ -28,6 +28,9 @@ A sleek, compact macOS menubar application for monitoring your Z.ai API usage in
 - Native macOS notification support
 
 ### 🖥️ **System Tray Integration**
+- **Live percentage display** in menubar: `🆉 T:X% M:Y%`
+  - **T** = Token usage percentage
+  - **M** = MCP tool usage percentage
 - Dynamic tooltip showing current usage percentages
 - Quick stats in tray menu
 - One-click refresh from tray
@@ -121,13 +124,23 @@ Click **"Details"** to expand/collapse:
 
 ### System Tray
 
+**Tray Title** (displayed directly in menubar):
+```
+🆉 T:9% M:8%
+```
+- Shows real-time usage percentages at a glance
+- **T** = Token quota usage (percentage)
+- **M** = MCP/Time quota usage (percentage)
+- Updates automatically when data is refreshed
+
 **Tooltip** (hover over tray icon):
 ```
-📊 Tokens: XX.X% | MCP: XX.X%
+Tokens: XX.X% | MCP: XX.X%
 Updated: HH:MM
 ```
 
-**Menu Options**:
+**Tray Menu**:
+- **Usage Stats**: Current token and MCP percentages
 - Show/Hide window
 - Refresh Now
 - Quit
@@ -174,8 +187,8 @@ zai-usage-monitor/
 │   └── App.tsx                  # Main application
 ├── src-tauri/                   # Backend (Rust)
 │   ├── src/
-│   │   ├── lib.rs              # Main entry point, tray setup
-│   │   ├── commands.rs         # Tauri commands (IPC)
+│   │   ├── lib.rs              # Main entry point, tray setup, title updates
+│   │   ├── commands.rs         # Tauri commands (IPC), state management
 │   │   ├── api.rs              # API client
 │   │   ├── config.rs           # Config management
 │   │   └── types.rs            # Type definitions
@@ -303,6 +316,16 @@ Content-Type: application/json
 - **TypeScript**: Strict mode enabled
 - **Rust**: Standard formatting (`cargo fmt`)
 - **ESLint**: Configured for React + TypeScript
+
+### Implementation Notes
+
+**System Tray Title Updates**:
+- Tray icon ID is stored in `AppState` after creation
+- `update_tray()` function retrieves tray by ID and updates title
+- Event-driven architecture: commands emit `usage-data-updated` event
+- `lib.rs` listens for event and triggers tray update
+- Title format: `🆉 T:{percentage}% M:{percentage}%`
+- Updates on: initial load, manual refresh, and auto-refresh intervals
 
 ## 📄 License
 

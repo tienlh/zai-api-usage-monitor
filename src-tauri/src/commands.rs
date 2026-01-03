@@ -3,11 +3,13 @@ use crate::types::{AllUsageData, Config};
 use std::sync::Mutex;
 use tauri::{State, AppHandle, Emitter, Manager};
 use serde_json::json;
+use tauri::tray::TrayIconId;
 
-/// Application state for holding the config and last usage data
+/// Application state for holding the config, last usage data, and tray ID
 pub struct AppState {
     pub config: Mutex<Config>,
     pub last_usage_data: Mutex<Option<AllUsageData>>,
+    pub tray_id: Mutex<Option<TrayIconId>>,
 }
 
 /// Resize the window to fit content
@@ -49,6 +51,9 @@ pub async fn get_usage_data(
 
     // Store in state for tray access
     *state.last_usage_data.lock().unwrap() = Some(data.clone());
+
+    // Emit event to trigger tray update (lib.rs listens for this)
+    let _ = app.emit("usage-data-updated", ());
 
     // Emit usage alerts for high usage
     for limit in &quota_limits {

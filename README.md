@@ -2,7 +2,7 @@
 
 A sleek, compact macOS menubar application for monitoring your Z.ai API usage in real-time. Built with Tauri, React, and TypeScript.
 
-![Z.ai Usage Monitor](./screenshot.png)
+![Z.ai Usage Monitor](./screenshot.jpg)
 
 ## ✨ Features
 

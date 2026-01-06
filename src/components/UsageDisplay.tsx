@@ -11,6 +11,7 @@ interface QuotaLimit {
   unit?: number;
   number?: number;
   usage_details?: Array<{ tool_name: string; usage: number }>;
+  next_reset_time?: number;
 }
 
 interface UsageDisplayProps {
@@ -18,6 +19,25 @@ interface UsageDisplayProps {
 }
 
 const UsageDisplay: React.FC<UsageDisplayProps> = ({ quotaLimits }) => {
+  const formatResetTime = (timestamp?: number): string | null => {
+    if (!timestamp) return null;
+    const date = new Date(timestamp);
+    return date.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+  };
+
+  const formatResetDateTime = (timestamp?: number): string | null => {
+    if (!timestamp) return null;
+    const date = new Date(timestamp);
+    const now = new Date();
+    const isToday = date.toDateString() === now.toDateString();
+
+    if (isToday) {
+      return `today at ${date.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}`;
+    } else {
+      return date.toLocaleString([], { month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' });
+    }
+  };
+
   const getProgressColor = (percentage: number): string => {
     if (percentage >= 90) return 'bg-gradient-to-r from-red-500 to-rose-600';
     if (percentage >= 70) return 'bg-gradient-to-r from-amber-500 to-orange-600';
@@ -46,13 +66,15 @@ const UsageDisplay: React.FC<UsageDisplayProps> = ({ quotaLimits }) => {
     <div className="bg-white/80 dark:bg-slate-900/80 backdrop-blur-xl rounded-lg shadow border border-slate-200/50 dark:border-slate-700/50 p-2">
       <div className="flex gap-2">
         {tokenLimit && (
-          <div className={`flex-1 p-2 rounded-md border ${getBgGradient(tokenLimit.percentage)} backdrop-blur-sm transition-all duration-300`}>
+          <div className={`flex-1 p-2 rounded-md border ${getBgGradient(tokenLimit.percentage)} backdrop-blur-sm transition-all duration-300`} title={formatResetDateTime(tokenLimit.next_reset_time) || ''}>
             <div className="flex items-center justify-between gap-2 mb-1.5">
               <div className="flex items-center gap-1.5 min-w-0">
                 <Zap className="w-3.5 h-3.5 text-amber-500 flex-shrink-0" />
                 <div className="flex flex-col min-w-0">
                   <span className="text-[10px] font-semibold text-slate-800 dark:text-slate-200 truncate">Tokens</span>
-                  <span className="text-[9px] text-slate-600 dark:text-slate-400">5hr</span>
+                  <span className="text-[9px] text-slate-600 dark:text-slate-400">
+                    {formatResetTime(tokenLimit.next_reset_time) || '5hr'}
+                  </span>
                 </div>
               </div>
               <span className={`text-sm font-bold flex-shrink-0 ${getTextColor(tokenLimit.percentage)}`}>

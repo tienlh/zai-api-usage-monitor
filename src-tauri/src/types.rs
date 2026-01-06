@@ -133,9 +133,28 @@ pub struct UsageDetail {
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct AllUsageData {
     pub model_usage: Vec<ModelUsageItem>,
+    pub model_usage_timeseries: Option<ModelUsageTimeSeries>,
     pub tool_usage: Vec<ToolUsageItem>,
     pub quota_limits: Vec<QuotaLimit>,
     pub timestamp: i64,
+}
+
+/// Time-series data for model usage (charts)
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct ModelUsageTimeSeries {
+    #[serde(rename = "x_time")]
+    pub x_time: Vec<String>,
+    #[serde(rename = "modelCallCount")]
+    pub model_call_count: Vec<Option<i64>>,
+    #[serde(rename = "tokensUsage")]
+    pub tokens_usage: Vec<Option<i64>>,
+}
+
+/// Combined model usage result (aggregated items + time-series data)
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct ModelUsageResult {
+    pub items: Vec<ModelUsageItem>,
+    pub timeseries: Option<ModelUsageTimeSeries>,
 }
 
 /// Configuration structure

@@ -31,6 +31,12 @@ interface ModelUsageItem {
   request_count: number;
 }
 
+interface ModelUsageTimeSeries {
+  x_time: string[];
+  modelCallCount: (number | null)[];
+  tokensUsage: (number | null)[];
+}
+
 interface ToolUsageItem {
   tool_name: string;
   usage_count: number;
@@ -38,6 +44,7 @@ interface ToolUsageItem {
 
 interface AllUsageData {
   model_usage: ModelUsageItem[];
+  model_usage_timeseries?: ModelUsageTimeSeries;
   tool_usage: ToolUsageItem[];
   quota_limits: QuotaLimit[];
   timestamp: number;
@@ -271,6 +278,7 @@ function App() {
             <UsageDisplay quotaLimits={usageData.quota_limits} />
             <UsageDetails
               modelUsage={usageData.model_usage}
+              modelUsageTimeseries={usageData.model_usage_timeseries}
               toolUsage={usageData.tool_usage}
             />
           </div>

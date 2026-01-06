@@ -35,7 +35,7 @@ pub async fn get_usage_data(
     let client = UsageClient::new(config);
 
     // Fetch all data in parallel for better performance
-    let (model_usage, tool_usage, quota_limits) = tokio::try_join!(
+    let (model_usage_result, tool_usage, quota_limits) = tokio::try_join!(
         client.fetch_model_usage(),
         client.fetch_tool_usage(),
         client.fetch_quota_limits()
@@ -43,7 +43,8 @@ pub async fn get_usage_data(
     .map_err(|e| format!("Failed to fetch data: {}", e))?;
 
     let data = AllUsageData {
-        model_usage,
+        model_usage: model_usage_result.items,
+        model_usage_timeseries: model_usage_result.timeseries,
         tool_usage,
         quota_limits: quota_limits.clone(),
         timestamp: chrono::Local::now().timestamp(),

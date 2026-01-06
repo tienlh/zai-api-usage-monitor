@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { Bot, Wrench, Zap, BarChart3, Flame, ChevronDown, ChevronRight } from 'lucide-react';
+import { Bot, Wrench, Zap, BarChart3, Flame, ChevronDown, ChevronRight, TrendingUp } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import {
   Table,
@@ -9,11 +9,27 @@ import {
   TableHeader,
   TableRow,
 } from '@/components/ui/table';
+import {
+  LineChart,
+  Line,
+  XAxis,
+  YAxis,
+  CartesianGrid,
+  Tooltip,
+  ResponsiveContainer,
+  Legend,
+} from 'recharts';
 
 interface ModelUsageItem {
   model: string;
   token_count: number;
   request_count: number;
+}
+
+interface ModelUsageTimeSeries {
+  x_time: string[];
+  modelCallCount: (number | null)[];
+  tokensUsage: (number | null)[];
 }
 
 interface ToolUsageItem {
@@ -23,6 +39,7 @@ interface ToolUsageItem {
 
 interface UsageDetailsProps {
   modelUsage: ModelUsageItem[];
+  modelUsageTimeseries?: ModelUsageTimeSeries;
   toolUsage: ToolUsageItem[];
 }
 
@@ -32,11 +49,30 @@ const formatNumber = (num: number): string => {
   return num.toString();
 };
 
-const UsageDetails: React.FC<UsageDetailsProps> = ({ modelUsage, toolUsage }) => {
+const UsageDetails: React.FC<UsageDetailsProps> = ({ modelUsage, modelUsageTimeseries, toolUsage }) => {
   const [isExpanded, setIsExpanded] = useState(false);
-  const [activeTab, setActiveTab] = useState<'models' | 'tools'>('models');
+  const [activeTab, setActiveTab] = useState<'models' | 'tools' | 'charts'>('models');
   const [modelSortBy, setModelSortBy] = useState<'tokens' | 'requests'>('tokens');
   const [toolSortBy, setToolSortBy] = useState<'count' | 'name'>('count');
+
+  // Prepare chart data from time-series
+  const prepareChartData = (timeseries: ModelUsageTimeSeries) => {
+    return timeseries.x_time.map((time, index) => ({
+      time: formatTimeLabel(time),
+      calls: timeseries.modelCallCount[index] ?? 0,
+      tokens: timeseries.tokensUsage[index] ?? 0,
+    }));
+  };
+
+  // Format time label for chart x-axis
+  const formatTimeLabel = (timeStr: string): string => {
+    try {
+      const date = new Date(timeStr);
+      return date.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+    } catch {
+      return timeStr;
+    }
+  };
 
   const sortedModels = [...modelUsage].sort((a, b) => {
     if (modelSortBy === 'tokens') return b.token_count - a.token_count;
@@ -97,6 +133,17 @@ const UsageDetails: React.FC<UsageDetailsProps> = ({ modelUsage, toolUsage }) =>
                   <Wrench className="w-3.5 h-3.5 mr-1.5" />
                   Tools ({toolUsage.length})
                 </Button>
+                {modelUsageTimeseries && modelUsageTimeseries.x_time.length > 0 && (
+                  <Button
+                    onClick={() => setActiveTab('charts')}
+                    size="sm"
+                    variant={activeTab === 'charts' ? 'default' : 'ghost'}
+                    className="text-xs h-7 px-3"
+                  >
+                    <TrendingUp className="w-3.5 h-3.5 mr-1.5" />
+                    Charts
+                  </Button>
+                )}
               </div>
               {activeTab === 'models' && modelUsage.length > 0 && (
                 <div className="flex gap-1">
@@ -201,6 +248,110 @@ const UsageDetails: React.FC<UsageDetailsProps> = ({ modelUsage, toolUsage }) =>
                     ))}
                   </TableBody>
                 </Table>
+              </div>
+            )}
+
+            {activeTab === 'charts' && modelUsageTimeseries && modelUsageTimeseries.x_time.length > 0 && (
+              <div className="space-y-4">
+                {/* Model Call Count Chart */}
+                <div>
+                  <h4 className="text-xs font-semibold text-slate-700 dark:text-slate-300 mb-2 flex items-center gap-1.5">
+                    <BarChart3 className="w-3.5 h-3.5" />
+                    Model Call Count
+                  </h4>
+                  <div className="h-48 bg-slate-50 dark:bg-slate-800/50 rounded-md p-2">
+                    <ResponsiveContainer width="100%" height="100%">
+                      <LineChart data={prepareChartData(modelUsageTimeseries)}>
+                        <CartesianGrid strokeDasharray="3 3" className="stroke-slate-200 dark:stroke-slate-700" />
+                        <XAxis
+                          dataKey="time"
+                          className="text-[10px]"
+                          tick={{ fill: 'currentColor', fontSize: 9 }}
+                          tickLine={{ stroke: 'currentColor' }}
+                        />
+                        <YAxis
+                          className="text-[10px]"
+                          tick={{ fill: 'currentColor', fontSize: 9 }}
+                          tickLine={{ stroke: 'currentColor' }}
+                        />
+                        <Tooltip
+                          contentStyle={{
+                            backgroundColor: 'rgba(255, 255, 255, 0.95)',
+                            border: '1px solid rgba(0, 0, 0, 0.1)',
+                            borderRadius: '6px',
+                            fontSize: '11px',
+                          }}
+                          labelStyle={{ color: '#1f2937' }}
+                          itemStyle={{ color: '#3b82f6' }}
+                        />
+                        <Legend
+                          wrapperStyle={{ fontSize: '10px', paddingTop: '8px' }}
+                          iconType="line"
+                        />
+                        <Line
+                          type="monotone"
+                          dataKey="calls"
+                          stroke="#3b82f6"
+                          strokeWidth={2}
+                          dot={{ fill: '#3b82f6', r: 3 }}
+                          activeDot={{ r: 5 }}
+                          name="Calls"
+                        />
+                      </LineChart>
+                    </ResponsiveContainer>
+                  </div>
+                </div>
+
+                {/* Tokens Usage Chart */}
+                <div>
+                  <h4 className="text-xs font-semibold text-slate-700 dark:text-slate-300 mb-2 flex items-center gap-1.5">
+                    <Zap className="w-3.5 h-3.5" />
+                    Tokens Usage
+                  </h4>
+                  <div className="h-48 bg-slate-50 dark:bg-slate-800/50 rounded-md p-2">
+                    <ResponsiveContainer width="100%" height="100%">
+                      <LineChart data={prepareChartData(modelUsageTimeseries)}>
+                        <CartesianGrid strokeDasharray="3 3" className="stroke-slate-200 dark:stroke-slate-700" />
+                        <XAxis
+                          dataKey="time"
+                          className="text-[10px]"
+                          tick={{ fill: 'currentColor', fontSize: 9 }}
+                          tickLine={{ stroke: 'currentColor' }}
+                        />
+                        <YAxis
+                          className="text-[10px]"
+                          tick={{ fill: 'currentColor', fontSize: 9 }}
+                          tickLine={{ stroke: 'currentColor' }}
+                          tickFormatter={(value) => formatNumber(value)}
+                        />
+                        <Tooltip
+                          contentStyle={{
+                            backgroundColor: 'rgba(255, 255, 255, 0.95)',
+                            border: '1px solid rgba(0, 0, 0, 0.1)',
+                            borderRadius: '6px',
+                            fontSize: '11px',
+                          }}
+                          labelStyle={{ color: '#1f2937' }}
+                          itemStyle={{ color: '#f59e0b' }}
+                          formatter={(value: number | undefined) => [formatNumber(value ?? 0), 'Tokens']}
+                        />
+                        <Legend
+                          wrapperStyle={{ fontSize: '10px', paddingTop: '8px' }}
+                          iconType="line"
+                        />
+                        <Line
+                          type="monotone"
+                          dataKey="tokens"
+                          stroke="#f59e0b"
+                          strokeWidth={2}
+                          dot={{ fill: '#f59e0b', r: 3 }}
+                          activeDot={{ r: 5 }}
+                          name="Tokens"
+                        />
+                      </LineChart>
+                    </ResponsiveContainer>
+                  </div>
+                </div>
               </div>
             )}
           </div>

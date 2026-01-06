@@ -1,6 +1,6 @@
 use crate::types::{
     Config, ModelUsageItem, ModelUsageResponse, ToolUsageItem, ToolUsageResponse, ToolDetail,
-    QuotaLimit, QuotaLimitResponse,
+    QuotaLimit, QuotaLimitResponse, ModelUsageData, ModelUsageResult, ModelUsageTimeSeries,
 };
 use chrono::{DateTime, Local, Duration, Timelike};
 use reqwest::Client;
@@ -18,6 +18,15 @@ impl UsageClient {
             client: Client::new(),
             config,
         }
+    }
+
+    /// Create ModelUsageItem from ModelUsageData
+    fn create_model_usage_items(data: &ModelUsageData) -> Vec<ModelUsageItem> {
+        vec![ModelUsageItem {
+            model: "All Models".to_string(),
+            token_count: data.total_usage.total_tokens_usage,
+            request_count: data.total_usage.total_model_call_count,
+        }]
     }
 
     /// Extract the base domain from the configured base URL
@@ -68,7 +77,7 @@ impl UsageClient {
     }
 
     /// Fetch model usage data from the API
-    pub async fn fetch_model_usage(&self) -> Result<Vec<ModelUsageItem>, String> {
+    pub async fn fetch_model_usage(&self) -> Result<ModelUsageResult, String> {
         let base_domain = self.get_base_domain()?;
         let url = format!("{}/api/monitor/usage/model-usage", base_domain);
         let (start, end) = Self::get_time_window();
@@ -99,13 +108,19 @@ impl UsageClient {
 
         // Convert time-series data to ModelUsageItem format for frontend
         // Since API returns totals, create a single "All Models" entry
-        let model_items = vec![ModelUsageItem {
-            model: "All Models".to_string(),
-            token_count: model_response.data.total_usage.total_tokens_usage,
-            request_count: model_response.data.total_usage.total_model_call_count,
-        }];
+        let model_items = Self::create_model_usage_items(&model_response.data);
 
-        Ok(model_items)
+        // Extract time-series data for charts
+        let timeseries = ModelUsageTimeSeries {
+            x_time: model_response.data.x_time,
+            model_call_count: model_response.data.model_call_count,
+            tokens_usage: model_response.data.tokens_usage,
+        };
+
+        Ok(ModelUsageResult {
+            items: model_items,
+            timeseries: Some(timeseries),
+        })
     }
 
     /// Fetch tool usage data from the API

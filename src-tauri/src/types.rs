@@ -106,18 +106,20 @@ pub struct QuotaLimitData {
 /// Individual quota limit
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct QuotaLimit {
-    #[serde(rename(serialize = "type_field", deserialize = "type"))]
+    #[serde(rename = "type")]
     pub type_field: String,
     pub unit: i64,
     pub number: i64,
-    pub usage: i64,
-    #[serde(rename(serialize = "current_value", deserialize = "currentValue"))]
-    pub current_value: i64,
-    pub remaining: i64,
+    #[serde(default)]
+    pub usage: Option<i64>,
+    #[serde(rename = "currentValue", default)]
+    pub current_value: Option<i64>,
+    #[serde(default)]
+    pub remaining: Option<i64>,
     pub percentage: f64,
-    #[serde(rename(serialize = "usage_details", deserialize = "usageDetails"))]
+    #[serde(rename = "usageDetails", default)]
     pub usage_details: Option<Vec<UsageDetail>>,
-    #[serde(rename(serialize = "next_reset_time", deserialize = "nextResetTime"))]
+    #[serde(rename = "nextResetTime", default)]
     pub next_reset_time: Option<i64>,
 }
 

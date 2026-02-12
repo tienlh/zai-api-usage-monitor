@@ -15,14 +15,14 @@ interface Config {
 }
 
 interface QuotaLimit {
-  type_field: string;
+  type: string;
   percentage: number;
-  current_value?: number;
+  currentValue?: number;
   usage?: number;
   remaining?: number;
   unit?: number;
   number?: number;
-  usage_details?: Array<{ tool_name: string; usage: number }>;
+  usageDetails?: Array<{ tool_name: string; usage: number }>;
 }
 
 interface ModelUsageItem {

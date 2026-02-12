@@ -3,15 +3,15 @@ import { Zap, Wrench, Inbox } from 'lucide-react';
 import { Progress } from '@/components/ui/progress';
 
 interface QuotaLimit {
-  type_field: string;
+  type: string;
   percentage: number;
-  current_value?: number;
+  currentValue?: number;
   usage?: number;
   remaining?: number;
   unit?: number;
   number?: number;
-  usage_details?: Array<{ tool_name: string; usage: number }>;
-  next_reset_time?: number;
+  usageDetails?: Array<{ tool_name: string; usage: number }>;
+  nextResetTime?: number;
 }
 
 interface UsageDisplayProps {
@@ -59,21 +59,21 @@ const UsageDisplay: React.FC<UsageDisplayProps> = ({ quotaLimits }) => {
     return 'text-emerald-700 dark:text-emerald-200';
   };
 
-  const tokenLimit = quotaLimits.find(l => l.type_field.includes('Token'));
-  const mcpLimit = quotaLimits.find(l => l.type_field.includes('MCP'));
+  const tokenLimit = quotaLimits.find(l => l.type.toUpperCase().includes('TOKEN'));
+  const mcpLimit = quotaLimits.find(l => l.type.toUpperCase().includes('MCP'));
 
   return (
     <div className="bg-white/80 dark:bg-slate-900/80 backdrop-blur-xl rounded-lg shadow border border-slate-200/50 dark:border-slate-700/50 p-2">
       <div className="flex gap-2">
         {tokenLimit && (
-          <div className={`flex-1 p-2 rounded-md border ${getBgGradient(tokenLimit.percentage)} backdrop-blur-sm transition-all duration-300`} title={formatResetDateTime(tokenLimit.next_reset_time) || ''}>
+          <div className={`flex-1 p-2 rounded-md border ${getBgGradient(tokenLimit.percentage)} backdrop-blur-sm transition-all duration-300`} title={formatResetDateTime(tokenLimit.nextResetTime) || ''}>
             <div className="flex items-center justify-between gap-2 mb-1.5">
               <div className="flex items-center gap-1.5 min-w-0">
                 <Zap className="w-3.5 h-3.5 text-amber-500 flex-shrink-0" />
                 <div className="flex flex-col min-w-0">
                   <span className="text-[10px] font-semibold text-slate-800 dark:text-slate-200 truncate">Tokens</span>
                   <span className="text-[9px] text-slate-600 dark:text-slate-400">
-                    {formatResetTime(tokenLimit.next_reset_time) || '5hr'}
+                    {formatResetTime(tokenLimit.nextResetTime) || '5hr'}
                   </span>
                 </div>
               </div>
@@ -91,12 +91,6 @@ const UsageDisplay: React.FC<UsageDisplayProps> = ({ quotaLimits }) => {
                 style={{ width: `${Math.min(tokenLimit.percentage, 100)}%` }}
               />
             </div>
-            {tokenLimit.remaining !== undefined && tokenLimit.usage !== undefined && (
-              <div className="flex justify-between mt-1 text-[9px] text-slate-600 dark:text-slate-400">
-                <span>{(tokenLimit.usage / 1000000).toFixed(1)}M</span>
-                <span>{(tokenLimit.remaining / 1000000).toFixed(1)}M left</span>
-              </div>
-            )}
           </div>
         )}
 
@@ -124,9 +118,9 @@ const UsageDisplay: React.FC<UsageDisplayProps> = ({ quotaLimits }) => {
                 style={{ width: `${Math.min(mcpLimit.percentage, 100)}%` }}
               />
             </div>
-            {mcpLimit.current_value !== undefined && mcpLimit.unit !== undefined && mcpLimit.number !== undefined && (
+            {mcpLimit.currentValue !== undefined && mcpLimit.unit !== undefined && mcpLimit.number !== undefined && (
               <div className="flex justify-between mt-1 text-[9px] text-slate-600 dark:text-slate-400">
-                <span>{mcpLimit.current_value}/{mcpLimit.unit * mcpLimit.number}</span>
+                <span>{mcpLimit.currentValue} used</span>
                 {mcpLimit.remaining !== undefined && <span>{mcpLimit.remaining} left</span>}
               </div>
             )}
